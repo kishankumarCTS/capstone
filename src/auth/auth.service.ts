@@ -110,7 +110,9 @@ export class AuthService {
 
   async logout(refreshToken: string) {
     const hashedToken = createHash('sha256').update(refreshToken).digest('hex');
-    await this.refreshTokenRepository.delete({ refreshTokenHash: hashedToken });
+    await this.refreshTokenRepository.delete({
+      refreshTokenHash: hashedToken,
+    });
     return 'User logged out.';
   }
 }
