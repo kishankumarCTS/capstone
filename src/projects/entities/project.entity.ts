@@ -8,6 +8,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 
 @Entity('projects')
 export class Project {
@@ -21,8 +22,8 @@ export class Project {
   createdAt!: Date;
 
   @ManyToOne(() => Workspace, (workSpace) => workSpace.id)
-  workspace!: Workspace;
+  workspace!: Relation<Workspace>;
 
   @OneToMany(() => Task, (task) => task.id)
-  tasks?: Task[];
+  tasks?: Relation<Task[]>;
 }

@@ -109,7 +109,7 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    await this.workspaceRepository.remove(workspace);
+    await this.workspaceRepository.delete(workspace);
 
     return {
       message: 'Workspace deleted successfully',
