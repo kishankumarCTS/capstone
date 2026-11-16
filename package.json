@@ -20,7 +20,8 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
     "test:auth": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js auth --runInBand",
     "test:workspace": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js workspace --runInBand",
-    "test:project": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js project --runInBand"
+    "test:project": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js project --runInBand",
+    "test:task": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js task --runInBand"
   },
   "dependencies": {
     "@nestjs/authentication": "^0.1.1",

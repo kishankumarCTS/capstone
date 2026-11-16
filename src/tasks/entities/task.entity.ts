@@ -64,5 +64,5 @@ export class Task {
   comment?: Relation<Comment[]>;
 
   @ManyToOne(() => Project, (project) => project.tasks)
-  project?: Relation<Project>;
+  project!: Relation<Project>;
 }
