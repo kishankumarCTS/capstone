@@ -113,6 +113,8 @@ export class AuthService {
     await this.refreshTokenRepository.delete({
       refreshTokenHash: hashedToken,
     });
-    return 'User logged out.';
+    return {
+      message: 'User logged out.',
+    };
   }
 }

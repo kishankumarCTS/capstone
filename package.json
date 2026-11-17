@@ -22,7 +22,7 @@
     "test:workspace": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js workspace --runInBand",
     "test:project": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js project --runInBand",
     "test:task": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js task --runInBand",
-    "test:auth_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles ./src/test/auth.e2e-spec.ts"
+    "test:auth_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles --forceExit ./src/test/auth.e2e-spec.ts"
   },
   "dependencies": {
     "@nestjs/authentication": "^0.1.1",

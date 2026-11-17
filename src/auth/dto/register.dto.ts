@@ -25,4 +25,6 @@ export class LoginDto {
   password!: string;
 }
 
-export class RefreshTokenDto {}
+export class RefreshTokenDto {
+  refreshToken!: string;
+}

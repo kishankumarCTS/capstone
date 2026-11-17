@@ -21,14 +21,11 @@ export class AuthController {
 
   @Post('refresh')
   refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return {
-      message: 'Refresh token endpoint',
-      data: refreshTokenDto,
-    };
+    return this.authService.refresh(refreshTokenDto.refreshToken);
   }
 
   @Post('logout')
-  logout(@Body() refreshToken: string) {
-    return this.authService.logout(refreshToken);
+  logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.logout(refreshTokenDto.refreshToken);
   }
 }
