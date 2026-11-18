@@ -1,15 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
-
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+
 import { UserRoles } from '../enums/user-roles.enum.js';
 import { User } from 'src/users/entities/user.entities.js';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const roles = this.reflector.getAllAndOverride<UserRoles[]>('roles', [
@@ -17,12 +19,20 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!roles) {
+    if (!roles?.length) {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
-    const user = request.user as User;
-    return roles.some((role) => user.role.includes(role));
+    const request = context.switchToHttp().getRequest<{
+      user?: User;
+    }>();
+
+    const user = request.user;
+
+    if (!user) {
+      throw new ForbiddenException('User not found');
+    }
+
+    return roles.includes(user.role);
   }
 }

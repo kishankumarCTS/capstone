@@ -34,7 +34,7 @@ export class WorkspacesController {
     @Body() createWorkspaceDto: CreateWorkspaceDto,
     @CurrentUser() user: User,
   ) {
-    return this.workspacesService.create(user.id, createWorkspaceDto);
+    return this.workspacesService.create(user, createWorkspaceDto);
   }
 
   @Get(':id')
