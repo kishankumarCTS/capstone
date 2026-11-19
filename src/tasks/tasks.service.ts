@@ -118,7 +118,6 @@ export class TasksService {
 
     if (cachedTask) {
       console.log(`Cache HIT for Task ID: ${id}`);
-      console.log(cachedTask);
       return JSON.parse(cachedTask) as Task;
     }
 

@@ -65,7 +65,7 @@ export class TasksController {
   @Roles(UserRoles.OWNER, UserRoles.MEMBER)
   updateTask(
     @CurrentUser() user: User,
-    updateTaskDto: UpdateTaskDto,
+    @Body() updateTaskDto: UpdateTaskDto,
     @Param('id') id: string,
   ) {
     return this.taskService.update(user, id, updateTaskDto);
