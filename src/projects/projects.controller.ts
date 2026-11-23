@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
   Param,
   Patch,
   Post,
@@ -20,6 +22,14 @@ import { User } from 'src/users/entities/user.entities.js';
 export class ProjectsController {
   constructor(private readonly projectService: ProjectsService) {}
 
+  @Get('/:project_id')
+  findProject(
+    @CurrentUser() user: User,
+    @Param('project_id') project_id: string,
+  ) {
+    return this.projectService.findOne(user.id, project_id);
+  }
+
   @Post()
   createProject(@Body() createProjectDto: CreateProjectDto) {
     return this.projectService.create(createProjectDto);
@@ -32,5 +42,13 @@ export class ProjectsController {
     @Param('id') id: string,
   ) {
     return this.projectService.update(user.id, id, updateProjectDto);
+  }
+
+  @Delete('/:project_id')
+  removeProject(
+    @CurrentUser() user: User,
+    @Param('project_id') project_id: string,
+  ) {
+    return this.projectService.remove(user.id, project_id);
   }
 }
