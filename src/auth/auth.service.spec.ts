@@ -147,7 +147,7 @@ describe('AuthService', () => {
         refresh_token: 'refresh_token',
         user_id: mockUserDetails.id,
       });
-      expect(result).toEqual(tokenResponse);
+      expect(result).toEqual({ ...tokenResponse, id: mockUserDetails.id });
     });
   });
 
@@ -194,6 +194,9 @@ describe('AuthService', () => {
       expect(refreshTokenRepository.findOne).toHaveBeenCalledWith({
         where: {
           refreshTokenHash: hashedToken,
+        },
+        relations: {
+          user: true,
         },
       });
       expect(tokenService.issue).toHaveBeenCalledWith(

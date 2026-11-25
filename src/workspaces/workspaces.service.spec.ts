@@ -154,7 +154,7 @@ describe('WorkspacesService', () => {
         },
       });
       expect(workspaceRepository.delete).toHaveBeenCalledWith(
-        mockWorkspaceDetails,
+        mockWorkspaceDetails.id,
       );
       expect(result).toEqual({ message: 'Workspace deleted successfully' });
     });

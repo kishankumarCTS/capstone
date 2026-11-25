@@ -229,6 +229,9 @@ describe('authentication (e2e)', () => {
         where: {
           refreshTokenHash: mockRefreshDetails.refreshTokenHash,
         },
+        relations: {
+          user: true,
+        },
       });
       expect(mockTokenService.issue).toHaveBeenCalledWith(userId, {
         method: 'password',

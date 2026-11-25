@@ -159,7 +159,7 @@ describe('ProjectsService', () => {
         },
       });
       expect(mockProjectRepository.delete).toHaveBeenCalledWith(
-        mockProjectDetails,
+        mockProjectDetails.id,
       );
       expect(result).toEqual({
         message: 'Project removed.',
