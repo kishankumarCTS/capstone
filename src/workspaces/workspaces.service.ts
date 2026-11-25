@@ -108,7 +108,7 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    await this.workspaceRepository.delete(workspace);
+    await this.workspaceRepository.delete(workspace.id);
 
     return {
       message: 'Workspace deleted successfully',

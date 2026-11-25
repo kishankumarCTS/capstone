@@ -71,7 +71,7 @@ export class AuthService {
       user_id: user.id,
     });
 
-    return token;
+    return { ...token, id: user.id };
   }
 
   async refresh(refreshToken: string) {
@@ -79,6 +79,9 @@ export class AuthService {
     const tokenDetails = await this.refreshTokenRepository.findOne({
       where: {
         refreshTokenHash: hashedToken,
+      },
+      relations: {
+        user: true,
       },
     });
     if (!tokenDetails) {

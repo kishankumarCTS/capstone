@@ -100,7 +100,7 @@ export class ProjectsService {
       throw new NotFoundException('Project not found');
     }
 
-    await this.projectRepository.delete(project);
+    await this.projectRepository.delete(project.id);
     return {
       message: 'Project removed.',
     };
