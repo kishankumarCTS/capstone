@@ -25,7 +25,8 @@
     "test:auth_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles --forceExit ./src/test/auth.e2e-spec.ts",
     "test:workspace_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles --forceExit ./src/test/workspace.e2e-spec.ts",
     "test:task_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles --forceExit ./src/test/task.e2e-spec.ts",
-    "test:project_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles --forceExit ./src/test/project.e2e-spec.ts"
+    "test:project_e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./src/test/jest-e2e.json --runInBand --detectOpenHandles --forceExit ./src/test/project.e2e-spec.ts",
+    "test:all": "npm test -- --runInBand && npm run test:auth_e2e && npm run test:workspace_e2e && npm run test:task_e2e && npm run test:project_e2e"
   },
   "dependencies": {
     "@nestjs/authentication": "^0.1.1",

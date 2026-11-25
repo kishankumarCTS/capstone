@@ -15,7 +15,7 @@ describe('ProjectsService', () => {
     findOne: jest.fn(),
     create: jest.fn(),
     save: jest.fn(),
-    remove: jest.fn(),
+    delete: jest.fn(),
   };
 
   const mockRedis = {
@@ -47,63 +47,50 @@ describe('ProjectsService', () => {
     expect(service).toBeDefined();
   });
 
+  const userId = 'user123';
+  const mockProjectDetails = {
+    id: 'project123',
+    name: 'Project Name',
+    workspace: {
+      id: 'workspace123',
+    },
+    createdAt: new Date(),
+  } as Project;
+  const projectResponse = {
+    name: mockProjectDetails.name,
+    workspace: mockProjectDetails.workspace.id,
+  };
+
   describe('create', () => {
-    const createProjectDto = {
-      name: 'project 123',
-      workspaceId: 'abc123',
-    };
-    const mockProjectValues = {
-      id: 'project123',
-      name: createProjectDto.name,
-      workspace: {
-        id: createProjectDto.workspaceId,
-      },
-      createdAt: new Date(),
-    } as Project;
-    const projectResponse = {
-      id: mockProjectValues.id,
-      name: createProjectDto.name,
-      workspace: createProjectDto.workspaceId,
-    };
     beforeEach(() => {
-      projectRepository.create.mockReturnValue(mockProjectValues);
-      projectRepository.save.mockResolvedValue(mockProjectValues);
+      projectRepository.create.mockReturnValue(mockProjectDetails);
+      projectRepository.save.mockResolvedValue(mockProjectDetails);
     });
     it('should reurn project object', async () => {
-      const result = await service.create(createProjectDto);
+      const result = await service.create({
+        name: mockProjectDetails.name,
+        workspaceId: mockProjectDetails.workspace.id,
+      });
       expect(projectRepository.create).toHaveBeenCalledWith({
-        name: createProjectDto.name,
+        name: mockProjectDetails.name,
         workspace: {
-          id: createProjectDto.workspaceId,
+          id: mockProjectDetails.workspace.id,
         },
       });
-      expect(projectRepository.save).toHaveBeenCalledWith(mockProjectValues);
-      expect(result).toEqual(projectResponse);
+      expect(projectRepository.save).toHaveBeenCalledWith(mockProjectDetails);
+      expect(result).toEqual({ ...projectResponse, id: mockProjectDetails.id });
     });
   });
 
   describe('find_one', () => {
-    const userId = 'xyz123';
-    const mockProjectValues = {
-      id: 'project123',
-      name: 'project name',
-      workspace: {
-        id: 'abc123',
-      },
-      createdAt: new Date(),
-    } as Project;
-    const projectResponse = {
-      id: mockProjectValues.id,
-      name: mockProjectValues.name,
-    };
     beforeEach(() => {
-      projectRepository.findOne.mockResolvedValue(mockProjectValues);
+      projectRepository.findOne.mockResolvedValue(mockProjectDetails);
     });
     it('should return project object', async () => {
-      const result = await service.findOne(userId, mockProjectValues.id);
+      const result = await service.findOne(userId, mockProjectDetails.id);
       expect(projectRepository.findOne).toHaveBeenCalledWith({
         where: {
-          id: mockProjectValues.id,
+          id: mockProjectDetails.id,
           workspace: {
             owner: {
               id: userId,
@@ -111,44 +98,28 @@ describe('ProjectsService', () => {
           },
         },
       });
-      expect(result).toEqual(projectResponse);
+      expect(result).toEqual({
+        id: mockProjectDetails.id,
+        name: mockProjectDetails.name,
+      });
     });
   });
 
   describe('update', () => {
-    const userId = 'xyz123';
-    const updateProjectDto = {
-      name: 'project name updated',
-    };
-    const mockProjectValues = {
-      id: 'project123',
-      name: 'project name',
-      workspace: {
-        id: 'abc123',
-      },
-      createdAt: new Date(),
-    } as Project;
-    const mockUpdatedProjectValues = {
-      id: mockProjectValues.id,
-      name: updateProjectDto.name,
-      workspace: {
-        id: mockProjectValues.workspace.id,
-      },
-      createdAt: new Date(),
-    } as Project;
     beforeEach(() => {
-      projectRepository.findOne.mockResolvedValue(mockProjectValues);
-      projectRepository.save.mockResolvedValue(mockUpdatedProjectValues);
+      projectRepository.findOne.mockResolvedValue(mockProjectDetails);
+      projectRepository.save.mockResolvedValue({
+        ...mockProjectDetails,
+        name: 'Updated project',
+      });
     });
     it('should return', async () => {
-      const result = await service.update(
-        userId,
-        mockProjectValues.id,
-        updateProjectDto,
-      );
+      const result = await service.update(userId, mockProjectDetails.id, {
+        name: 'Updated project',
+      });
       expect(projectRepository.findOne).toHaveBeenCalledWith({
         where: {
-          id: mockProjectValues.id,
+          id: mockProjectDetails.id,
           workspace: {
             owner: {
               id: userId,
@@ -156,33 +127,30 @@ describe('ProjectsService', () => {
           },
         },
       });
-      expect(projectRepository.save).toHaveBeenCalledWith(
-        mockUpdatedProjectValues,
-      );
-      expect(result).toEqual(mockUpdatedProjectValues);
+      expect(projectRepository.save).toHaveBeenCalledWith({
+        ...mockProjectDetails,
+        name: 'Updated project',
+      });
+      expect(result).toEqual({
+        ...mockProjectDetails,
+        name: 'Updated project',
+      });
     });
   });
 
   describe('remove', () => {
-    const userId = 'user123';
-    const projectId = 'project123';
-    const mockProjectValues = {
-      id: projectId,
-      name: 'project name',
-      workspace: {
-        id: 'abc123',
-      },
-      createdAt: new Date(),
-    } as Project;
     beforeEach(() => {
-      projectRepository.findOne.mockResolvedValue(mockProjectValues);
-      projectRepository.remove.mockResolvedValue(mockProjectValues);
+      projectRepository.findOne.mockResolvedValue(mockProjectDetails);
+      projectRepository.delete.mockResolvedValue({
+        raw: [],
+        affected: 1,
+      });
     });
     it('should return delete message', async () => {
-      const result = await service.remove(userId, projectId);
+      const result = await service.remove(userId, mockProjectDetails.id);
       expect(projectRepository.findOne).toHaveBeenCalledWith({
         where: {
-          id: projectId,
+          id: mockProjectDetails.id,
           workspace: {
             owner: {
               id: userId,
@@ -190,7 +158,9 @@ describe('ProjectsService', () => {
           },
         },
       });
-      expect(projectRepository.remove).toHaveBeenCalledWith(mockProjectValues);
+      expect(mockProjectRepository.delete).toHaveBeenCalledWith(
+        mockProjectDetails,
+      );
       expect(result).toEqual({
         message: 'Project removed.',
       });

@@ -6,6 +6,7 @@ import { WorkspacesService } from './workspaces.service.js';
 import { Workspace } from './entities/workspace.entity.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { User } from 'src/users/entities/user.entities.js';
 
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
@@ -37,78 +38,63 @@ describe('WorkspacesService', () => {
     expect(service).toBeDefined();
   });
 
+  const userId = 'user123';
+  const mockUserDetails = {
+    id: userId,
+  } as User;
+  const createWorkspaceDto = {
+    name: 'test_workspace',
+  };
+  const mockWorkspaceDetails = {
+    id: 'abc123',
+    name: createWorkspaceDto.name,
+    owner: mockUserDetails,
+    createdAt: new Date(),
+  } as Workspace;
+
+  const mockWorkspaceResponse = {
+    id: mockWorkspaceDetails.id,
+    name: mockWorkspaceDetails.name,
+    owner: mockWorkspaceDetails.owner.id,
+    createdAt: mockWorkspaceDetails.createdAt,
+  };
+
   describe('create', () => {
-    const createWorkspaceDto = {
-      name: 'test_workspace',
-    };
-    const mockWorkspace = {
-      id: 'abc123',
-      name: createWorkspaceDto.name,
-      owner: {
-        id: 'user123',
-      },
-      createdAt: new Date(),
-    } as Workspace;
-
-    const mockWorkspaceResponse = {
-      id: mockWorkspace.id,
-      name: mockWorkspace.name,
-      owner: mockWorkspace.owner.id,
-      createdAt: mockWorkspace.createdAt,
-    };
-
     beforeEach(() => {
-      workspaceRepository.create.mockReturnValue(mockWorkspace);
-      workspaceRepository.save.mockResolvedValue(mockWorkspace);
+      workspaceRepository.create.mockReturnValue(mockWorkspaceDetails);
+      workspaceRepository.save.mockResolvedValue(mockWorkspaceDetails);
     });
 
     it('should return workspace object', async () => {
       const result = await service.create(
-        mockWorkspace.owner.id,
+        mockWorkspaceDetails.owner,
         createWorkspaceDto,
       );
       expect(workspaceRepository.create).toHaveBeenCalledWith({
-        name: mockWorkspace.name,
+        name: mockWorkspaceDetails.name,
         owner: {
-          id: mockWorkspace.owner.id,
+          id: mockWorkspaceDetails.owner.id,
         },
       });
-      expect(workspaceRepository.save).toHaveBeenCalledWith(mockWorkspace);
+      expect(workspaceRepository.save).toHaveBeenCalledWith(
+        mockWorkspaceDetails,
+      );
       expect(result).toEqual(mockWorkspaceResponse);
     });
   });
 
   describe('find_one', () => {
-    const findOneDto = {
-      userId: 'abc123',
-      id: 'xyz123',
-    };
-    const mockWorkspace = {
-      id: findOneDto.id,
-      name: 'workspace_name',
-      owner: {
-        id: findOneDto.userId,
-      },
-      createdAt: new Date(),
-    } as Workspace;
-    const mockWorkspaceResponse = {
-      id: findOneDto.id,
-      name: mockWorkspace.name,
-      owner: mockWorkspace.owner.id,
-      createdAt: mockWorkspace.createdAt,
-    };
-
     beforeEach(() => {
-      workspaceRepository.findOne.mockResolvedValue(mockWorkspace);
+      workspaceRepository.findOne.mockResolvedValue(mockWorkspaceDetails);
     });
 
     it('should return workspace object', async () => {
-      const result = await service.findOne(findOneDto.userId, findOneDto.id);
+      const result = await service.findOne(userId, mockWorkspaceDetails.id);
       expect(workspaceRepository.findOne).toHaveBeenCalledWith({
         where: {
-          id: findOneDto.id,
+          id: mockWorkspaceDetails.id,
           owner: {
-            id: findOneDto.userId,
+            id: userId,
           },
         },
         relations: {
@@ -120,45 +106,20 @@ describe('WorkspacesService', () => {
   });
 
   describe('update', () => {
-    const userId = 'xyz123';
-    const updateWorkspaceDto = {
-      name: 'updated workspce name',
-    };
-    const mockWorkspace = {
-      id: 'abc123',
-      name: 'workspace_name',
-      owner: {
-        id: userId,
-      },
-      createdAt: new Date(),
-    } as Workspace;
-    const mockUpdatedWorkspace = {
-      id: 'abc123',
-      name: updateWorkspaceDto.name,
-      owner: {
-        id: userId,
-      },
-      createdAt: new Date(),
-    } as Workspace;
-    const mockWorkspaceResponse = {
-      id: mockWorkspace.id,
-      name: updateWorkspaceDto.name,
-      owner: mockWorkspace.owner.id,
-      createdAt: mockWorkspace.createdAt,
-    };
     beforeEach(() => {
-      workspaceRepository.findOne.mockResolvedValue(mockWorkspace);
-      workspaceRepository.save.mockResolvedValue(mockUpdatedWorkspace);
+      workspaceRepository.findOne.mockResolvedValue(mockWorkspaceDetails);
+      workspaceRepository.save.mockResolvedValue({
+        ...mockWorkspaceDetails,
+        name: 'Updated workspace',
+      });
     });
     it('should return workspace object', async () => {
-      const result = await service.update(
-        userId,
-        mockWorkspace.id,
-        updateWorkspaceDto,
-      );
+      const result = await service.update(userId, mockWorkspaceDetails.id, {
+        name: 'Updated workspace',
+      });
       expect(workspaceRepository.findOne).toHaveBeenCalledWith({
         where: {
-          id: mockWorkspace.id,
+          id: mockWorkspaceDetails.id,
           owner: {
             id: userId,
           },
@@ -167,40 +128,34 @@ describe('WorkspacesService', () => {
           owner: true,
         },
       });
-      expect(result).toEqual(mockWorkspaceResponse);
+      expect(result).toEqual({
+        ...mockWorkspaceResponse,
+        name: 'Updated workspace',
+      });
     });
   });
 
   describe('remove', () => {
-    const id = 'abc123';
-    const userId = 'xyz123';
-    const mockWorkspace = {
-      id,
-      name: 'workspace_name',
-      owner: {
-        id: userId,
-      },
-      createdAt: new Date(),
-    } as Workspace;
-
     beforeEach(() => {
-      workspaceRepository.findOne.mockResolvedValue(mockWorkspace);
+      workspaceRepository.findOne.mockResolvedValue(mockWorkspaceDetails);
       workspaceRepository.delete.mockResolvedValue({
         affected: 1,
         raw: [],
       });
     });
     it('should return delete message', async () => {
-      const result = await service.remove(userId, id);
+      const result = await service.remove(userId, mockUserDetails.id);
       expect(workspaceRepository.findOne).toHaveBeenCalledWith({
         where: {
-          id,
+          id: mockUserDetails.id,
           owner: {
             id: userId,
           },
         },
       });
-      expect(workspaceRepository.delete).toHaveBeenCalledWith(mockWorkspace);
+      expect(workspaceRepository.delete).toHaveBeenCalledWith(
+        mockWorkspaceDetails,
+      );
       expect(result).toEqual({ message: 'Workspace deleted successfully' });
     });
   });

@@ -16,8 +16,8 @@ import {
 } from '@nestjs/authentication';
 import { RefreshTokenService } from './refresh-token.service.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import type { RegisterDto } from './dto/register.dto.js';
 import { createHash } from 'crypto';
+import { UserRoles } from 'src/common/enums/user-roles.enum.js';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -92,112 +92,102 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('login', () => {
-    const loginDto = {
+  const mockUserDetails = {
+    id: 'user123',
+    email: 'test@email.com',
+    role: UserRoles.OWNER,
+    password: 'pass123',
+  } as User;
+  const tokenResponse = {
+    accessToken: 'access_token',
+    refreshToken: 'refresh_token',
+  } as TokenPair;
+  const refreshToken = 'valid-refresh-token';
+  const hashedToken = createHash('sha256').update(refreshToken).digest('hex');
+  const mockTokenDetails = {
+    refreshTokenHash: hashedToken,
+    status: RefreshTokenStatus.ACTIVE,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    user: {
+      id: 'user-id',
       email: 'test@example.com',
-      password: 'StrongPassword123!',
-    };
-
-    const mockUser = {
-      id: 'abc123',
-      email: 'test@example.com',
-      password: 'hashed_password',
       role: 'owner',
-      createdAt: new Date(),
-    } as User;
+    },
+  } as RefreshToken;
 
+  describe('login', () => {
     it('should successfully login and return tokens', async () => {
-      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.findOne.mockResolvedValue(mockUserDetails);
       passwordHasher.verify.mockResolvedValue(true);
-      console.log(refreshTokenRepository);
-      const tokenResponse = {
-        accessToken: 'access_token',
-        refreshToken: 'refresh_token',
-      } as TokenPair;
       tokenService.issue.mockResolvedValue(tokenResponse);
       refreshTokenService.freshRefreshToken.mockResolvedValue(undefined);
 
-      const result = await service.login(loginDto);
+      const result = await service.login({
+        email: mockUserDetails.email,
+        password: mockUserDetails.password,
+      });
 
       expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { email: loginDto.email },
+        where: { email: mockUserDetails.email },
       });
 
       expect(passwordHasher.verify).toHaveBeenCalledWith(
-        loginDto.password,
-        mockUser.password,
+        mockUserDetails.password,
+        mockUserDetails.password,
       );
-      expect(tokenService.issue).toHaveBeenCalledWith(mockUser.id, {
+      expect(tokenService.issue).toHaveBeenCalledWith(mockUserDetails.id, {
         method: 'password',
-        claims: { amr: ['pwd'], email: mockUser.email, role: mockUser.role },
+        claims: {
+          amr: ['pwd'],
+          email: mockUserDetails.email,
+          role: mockUserDetails.role,
+        },
       });
       expect(refreshTokenService.freshRefreshToken).toHaveBeenCalledWith({
         refresh_token: 'refresh_token',
-        user_id: mockUser.id,
+        user_id: mockUserDetails.id,
       });
       expect(result).toEqual(tokenResponse);
     });
   });
 
   describe('register', () => {
-    const registerDto = {
-      email: 'test@email.com',
-      password: 'test_password',
-      role: 'owner',
-    } as RegisterDto;
-    const mockUser = {
-      id: 'abc123',
-      email: registerDto.email,
-      password: 'hashed_password',
-      role: registerDto.role,
-      createdAt: new Date(),
-    } as User;
     beforeEach(() => {
       userRepository.findOne.mockResolvedValue(null);
       passwordHasher.hash.mockResolvedValue('hashed_password');
-      userRepository.create.mockReturnValue(mockUser);
-      userRepository.save.mockResolvedValue(mockUser);
+      userRepository.create.mockReturnValue(mockUserDetails);
+      userRepository.save.mockResolvedValue(mockUserDetails);
     });
 
     it('should return success message', async () => {
-      const result = await service.register(registerDto);
+      const result = await service.register({
+        email: mockUserDetails.email,
+        password: mockUserDetails.password,
+        role: mockUserDetails.role,
+      });
       expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { email: registerDto.email },
+        where: { email: mockUserDetails.email },
       });
-      expect(passwordHasher.hash).toHaveBeenCalledWith(registerDto.password);
+      expect(passwordHasher.hash).toHaveBeenCalledWith(
+        mockUserDetails.password,
+      );
       expect(userRepository.create).toHaveBeenCalledWith({
-        email: registerDto.email,
+        email: mockUserDetails.email,
         password: 'hashed_password',
-        role: registerDto.role,
+        role: mockUserDetails.role,
       });
-      expect(userRepository.save).toHaveBeenCalledWith(mockUser);
+      expect(userRepository.save).toHaveBeenCalledWith(mockUserDetails);
       expect(result).toEqual({
         message: 'User created',
-        user_id: 'abc123',
+        user_id: mockUserDetails.id,
       });
     });
   });
 
   describe('refresh', () => {
-    const refreshToken = 'valid-refresh-token';
-    const hashedToken = createHash('sha256').update(refreshToken).digest('hex');
-    const mockTokenDetails = {
-      refreshTokenHash: hashedToken,
-      status: RefreshTokenStatus.ACTIVE,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-      user: {
-        id: 'user-id',
-        email: 'test@example.com',
-        role: 'owner',
-      },
-    } as RefreshToken;
-    const mockToken = {
-      accessToken: 'new-access-token',
-      refreshToken: 'new-refresh-token',
-    } as TokenPair;
     beforeEach(() => {
       refreshTokenRepository.findOne.mockResolvedValue(mockTokenDetails);
-      tokenService.issue.mockResolvedValue(mockToken);
+      tokenService.issue.mockResolvedValue(tokenResponse);
     });
     it('should return token pair', async () => {
       const result = await service.refresh(refreshToken);
@@ -217,13 +207,11 @@ describe('AuthService', () => {
           },
         },
       );
-      expect(result).toEqual(mockToken);
+      expect(result).toEqual(tokenResponse);
     });
   });
 
   describe('logout', () => {
-    const refreshToken = 'valid_refresh_token';
-    const hashedToken = createHash('sha256').update(refreshToken).digest('hex');
     beforeEach(() => {
       refreshTokenRepository.delete.mockResolvedValue({
         affected: 1,
@@ -235,7 +223,7 @@ describe('AuthService', () => {
       expect(refreshTokenRepository.delete).toHaveBeenCalledWith({
         refreshTokenHash: hashedToken,
       });
-      expect(result).toEqual('User logged out.');
+      expect(result).toEqual({ message: 'User logged out.' });
     });
   });
 });

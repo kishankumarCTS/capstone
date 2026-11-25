@@ -110,6 +110,7 @@ describe('authentication (e2e)', () => {
   };
 
   describe('POST /auth/register', () => {
+    jest.clearAllMocks();
     beforeEach(() => {
       mockUserRepository.findOne.mockResolvedValue(null);
       mockUserRepository.create.mockReturnValue({
@@ -149,9 +150,22 @@ describe('authentication (e2e)', () => {
       expect(response.status).toBe(201);
       expect(response.body).toBeDefined();
     });
+
+    it('should throw an error when an invalid role is provided', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: mockUserDetails.email,
+          password: mockUserDetails.password,
+          role: 'admin', // Invalid role
+        });
+
+      expect(response.status).toBe(400);
+    });
   });
 
   describe('POST /auth/login', () => {
+    jest.clearAllMocks();
     beforeEach(() => {
       jest.clearAllMocks();
       mockUserRepository.findOne.mockResolvedValue({
@@ -163,7 +177,7 @@ describe('authentication (e2e)', () => {
       mockTokenService.issue.mockResolvedValue(mockToken);
       mockRefreshTokenService.freshRefreshToken.mockResolvedValue(undefined);
     });
-    it('should register a new user', async () => {
+    it('should login an existing user', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
@@ -197,6 +211,7 @@ describe('authentication (e2e)', () => {
   });
 
   describe('POST /auth/refresh', () => {
+    jest.clearAllMocks();
     beforeEach(() => {
       jest.clearAllMocks();
       mockRefreshTokenRepository.findOne.mockResolvedValue(mockRefreshDetails);
@@ -228,6 +243,7 @@ describe('authentication (e2e)', () => {
   });
 
   describe('POST /auth/logout', () => {
+    jest.clearAllMocks();
     const deletdResult = {
       raw: [],
       affected: 0,
@@ -243,11 +259,10 @@ describe('authentication (e2e)', () => {
         .send({
           refreshToken: mockToken.refreshToken,
         });
+      expect(response.status).toBe(201);
       expect(mockRefreshTokenRepository.delete).toHaveBeenCalledWith({
         refreshTokenHash: refreshTokenHash,
       });
-      console.log(response.status);
-      console.log(response.body);
     });
   });
 });
