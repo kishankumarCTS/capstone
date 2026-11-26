@@ -1,0 +1,1273 @@
+{
+  "info": {
+    "_postman_id": "54c5ad31-afc0-4f22-bff2-eb259f76bbfb",
+    "name": "Capstone NestJS API",
+    "description": "Complete Postman Collection v2.1 generated directly from the `kishankumarCTS/capstone` NestJS repository.\n\n### Architecture\n- **Framework:** NestJS (Express) with global `ValidationPipe` on port `3000` (configurable via `PORT` in `.env`)\n- **Database:** PostgreSQL via TypeORM (`users`, `refresh_tokens`, `workspaces`, `workspace-members`, `projects`, `tasks`, `comments`)\n- **Auth:** `@nestjs/authentication` Bearer JWT (`JwtBearerProvider`) globally enforced unless marked `@Public()`\n- **RBAC:** `RolesGuard` with `UserRoles` (`owner`, `member`)\n- **Caching & Queues:** Redis (`localhost:6379`) for project/task caching and BullMQ (`task-assignment`)\n- **WebSockets (Non-HTTP):** `TaskGateway` (Socket.IO) exposes `joinTaskAssigned`, `assigned`, and `leaveTaskAssigned` events (not included as REST requests).\n\n### Quick Start\n1. Import both `capstone.postman_collection.json` and `capstone.postman_environment.json`.\n2. Select the **Capstone Local Environment**.\n3. Run **Auth -> Register User** (saves `userId`) and **Auth -> Login** (saves `accessToken` and `refreshToken`).\n4. Run **Workspaces -> Create Workspace** -> **Projects -> Create Project** -> **Tasks -> Create Task** -> **Task Comments -> Add Comment**. Test scripts automatically capture IDs (`workspaceId`, `projectId`, `taskId`, `commentId`) for downstream requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "owner@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "Password@123",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "workspaceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "projectId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "description": "Root application endpoint (`src/app.controller.ts`).",
+      "item": [
+        {
+          "name": "Health / Hello World",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "Returns the default NestJS greeting from `AppController.getHello()`.\n\n- **Auth:** Bearer JWT required (route is not decorated with `@Public()`).\n- **Expected Status:** `200 OK`\n- **Expected Response:** Plain text `Hello World!`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response body is Hello World!', function () {",
+                  "    pm.expect(pm.response.text()).to.eql('Hello World!');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints (`src/auth/auth.controller.ts`): register, login, refresh token, and logout.",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a new user account (`AuthController.register`).\n\n- **Auth:** Public (`@Public()`)\n- **Validation (`RegisterDto`):**\n  - `email` (string, valid email, required, unique)\n  - `password` (string, required)\n  - `role` (enum: `owner` | `member`, required)\n- **Expected Statuses:** `201 Created`, `400 Bad Request` (validation error), `409 Conflict` (`User already exists.`)\n- **Expected Response:** `{ \"message\": \"User created\", \"user_id\": \"<uuid>\" }`",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"role\": \"owner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response contains user_id and message', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message', 'User created');",
+                  "    pm.expect(jsonData).to.have.property('user_id');",
+                  "    pm.environment.set('userId', jsonData.user_id);",
+                  "    pm.collectionVariables.set('userId', jsonData.user_id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates an existing user and issues JWT access & refresh tokens (`AuthController.login`).\n\n- **Auth:** Public (`@Public()`)\n- **Validation (`LoginDto`):**\n  - `email` (string, valid email, required)\n  - `password` (string, required)\n- **Expected Statuses:** `201 Created`, `400 Bad Request`, `401 Unauthorized` (`Email or password was incorrect.`)\n- **Expected Response:** Token object from `@nestjs/authentication` containing `accessToken` and `refreshToken`.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Access and refresh tokens returned and saved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('accessToken');",
+                  "    pm.environment.set('accessToken', jsonData.accessToken);",
+                  "    pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+                  "    if (jsonData.refreshToken) {",
+                  "        pm.environment.set('refreshToken', jsonData.refreshToken);",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.refreshToken);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Issues a new token pair using an active refresh token (`AuthController.refresh`).\n\n- **Auth:** Bearer JWT required (route is NOT decorated with `@Public()`).\n- **Body (`RefreshTokenDto`):** `{ \"refreshToken\": \"<token>\" }`\n- **Expected Statuses:** `201 Created`, `401 Unauthorized` (invalid, revoked, or expired refresh token).\n- **Implementation Note:** `AuthService.refresh()` reads `tokenDetails.user.id` without specifying `relations: { user: true }` in `refreshTokenRepository.findOne()`, which may trigger a runtime error unless the `user` relation is loaded.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('New tokens saved if present', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.accessToken) {",
+                  "        pm.environment.set('accessToken', jsonData.accessToken);",
+                  "        pm.collectionVariables.set('accessToken', jsonData.accessToken);",
+                  "    }",
+                  "    if (jsonData.refreshToken) {",
+                  "        pm.environment.set('refreshToken', jsonData.refreshToken);",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.refreshToken);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Deletes the hashed refresh token from the database (`AuthController.logout`).\n\n- **Auth:** Bearer JWT required (route is NOT decorated with `@Public()`).\n- **Body (`RefreshTokenDto`):** `{ \"refreshToken\": \"<token>\" }`\n- **Expected Status:** `201 Created`\n- **Expected Response:** `{ \"message\": \"User logged out.\" }`",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Logout message returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message', 'User logged out.');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "Users controller (`src/users/users.controller.ts`).",
+      "item": [
+        {
+          "name": "Register User (Stub)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "register"
+              ]
+            },
+            "description": "Stub endpoint defined in `UsersController.registerUser()`.\n\n- **Auth:** Bearer JWT required (route is not decorated with `@Public()`).\n- **Implementation Note:** Method body is currently empty (`registerUser() {}`) and expects no request body. Actual user registration is implemented at `POST /auth/register`.\n- **Expected Status:** `201 Created` (empty response body)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Workspaces",
+      "description": "Workspace management endpoints (`src/workspaces/workspaces.controller.ts`). All routes require Bearer JWT and `owner` role (`@UseGuards(RolesGuard)`, `@Roles(UserRoles.OWNER)`).",
+      "item": [
+        {
+          "name": "Get All Workspaces",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspaces",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workspaces"
+              ]
+            },
+            "description": "Fetches workspaces (`WorkspacesController.findAll`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Expected Status:** `200 OK`\n- **Expected Response:** `{ \"message\": \"All workspaces fetched successfully\", \"data\": [] }` (currently returns a static empty array in `WorkspacesService.findAll()`)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response contains message and data array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Workspace",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/workspaces",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workspaces"
+              ]
+            },
+            "description": "Creates a new workspace owned by the authenticated user (`WorkspacesController.create`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Validation (`CreateWorkspaceDto`):** `name` (string, required)\n- **Expected Statuses:** `201 Created`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`\n- **Expected Response (`WorkspaceResponseDto`):** `{ \"id\": \"<uuid>\", \"name\": \"...\", \"owner\": \"<userId>\", \"createdAt\": \"<iso-date>\" }`",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Engineering Workspace\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Workspace created and workspaceId saved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('owner');",
+                  "    pm.environment.set('workspaceId', jsonData.id);",
+                  "    pm.collectionVariables.set('workspaceId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Workspace by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workspaces",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{workspaceId}}",
+                  "description": "Workspace UUID"
+                }
+              ]
+            },
+            "description": "Fetches a single workspace owned by the authenticated user (`WorkspacesController.findOne`).\n\n- **Auth:** Bearer JWT (`owner` role required; must be workspace owner)\n- **Path Parameter:** `id` (Workspace UUID)\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Workspace not found`)\n- **Expected Response (`WorkspaceResponseDto`):** `{ \"id\", \"name\", \"owner\", \"createdAt\" }`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Workspace fields present', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('owner');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Workspace",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workspaces",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{workspaceId}}",
+                  "description": "Workspace UUID"
+                }
+              ]
+            },
+            "description": "Updates the name of a workspace owned by the authenticated user (`WorkspacesController.update`).\n\n- **Auth:** Bearer JWT (`owner` role required; must be workspace owner)\n- **Path Parameter:** `id` (Workspace UUID)\n- **Validation (`UpdateWorkspaceDto`):** `name` (string, required)\n- **Expected Statuses:** `200 OK`, `400 Bad Request`, `404 Not Found` (`Worspace not found.`)\n- **Expected Response (`WorkspaceResponseDto`):** `{ \"id\", \"name\", \"owner\", \"createdAt\" }`",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Engineering Workspace\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Workspace name updated', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name', 'Updated Engineering Workspace');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Workspace",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workspaces/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workspaces",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{workspaceId}}",
+                  "description": "Workspace UUID"
+                }
+              ]
+            },
+            "description": "Deletes a workspace owned by the authenticated user (`WorkspacesController.remove`).\n\n- **Auth:** Bearer JWT (`owner` role required; must be workspace owner)\n- **Path Parameter:** `id` (Workspace UUID)\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Workspace not found`)\n- **Expected Response:** `{ \"message\": \"Workspace deleted successfully\" }`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Deletion confirmation returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message', 'Workspace deleted successfully');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "description": "Project management endpoints (`src/projects/projects.controller.ts`). All routes require Bearer JWT and `owner` role (`@UseGuards(RolesGuard)`, `@Roles(UserRoles.OWNER)`).",
+      "item": [
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            },
+            "description": "Creates a new project inside a workspace (`ProjectsController.createProject`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Validation (`CreateProjectDto`):**\n  - `name` (string, required)\n  - `workspaceId` (string, required)\n- **Expected Statuses:** `201 Created`, `400 Bad Request`\n- **Expected Response:** `{ \"id\": <auto-increment-id>, \"name\": \"...\", \"workspace\": \"<workspaceId>\" }`",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Capstone Backend API\",\n  \"workspaceId\": \"{{workspaceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Project created and projectId saved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.environment.set('projectId', String(jsonData.id));",
+                  "    pm.collectionVariables.set('projectId', String(jsonData.id));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Project by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/:project_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                ":project_id"
+              ],
+              "variable": [
+                {
+                  "key": "project_id",
+                  "value": "{{projectId}}",
+                  "description": "Project ID"
+                }
+              ]
+            },
+            "description": "Fetches a single project owned by the authenticated user's workspace (`ProjectsController.findProject`). Cached in Redis (`capstone:project:<project_id>`) for 60 seconds.\n\n- **Auth:** Bearer JWT (`owner` role required; must own parent workspace)\n- **Path Parameter:** `project_id`\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Project not found.`)\n- **Expected Response:** `{ \"id\": ..., \"name\": \"...\" }`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Project id and name returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{projectId}}",
+                  "description": "Project ID"
+                }
+              ]
+            },
+            "description": "Updates a project's name (`ProjectsController.updateProject`).\n\n- **Auth:** Bearer JWT (`owner` role required; must own parent workspace)\n- **Path Parameter:** `id` (Project ID)\n- **Validation (`UpdateProjectDto`):** `name` (string, required)\n- **Expected Statuses:** `200 OK`, `400 Bad Request`, `404 Not Found` (`Project not found.`)\n- **Expected Response:** Updated `Project` entity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Capstone Backend API\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Project name updated', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name', 'Updated Capstone Backend API');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/:project_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                ":project_id"
+              ],
+              "variable": [
+                {
+                  "key": "project_id",
+                  "value": "{{projectId}}",
+                  "description": "Project ID"
+                }
+              ]
+            },
+            "description": "Deletes a project owned by the authenticated user's workspace (`ProjectsController.removeProject`).\n\n- **Auth:** Bearer JWT (`owner` role required; must own parent workspace)\n- **Path Parameter:** `project_id`\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Project not found`)\n- **Expected Response:** `{ \"message\": \"Project removed.\" }`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Removal confirmation returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message', 'Project removed.');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "description": "Task CRUD, filtering, and pagination endpoints (`src/tasks/tasks.controller.ts`). Controller default role is `owner`; `GET /tasks/:id` and `PATCH /tasks/:id` allow both `owner` and `member`.",
+      "item": [
+        {
+          "name": "Get All Tasks (Filtered & Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks?page=1&limit=10&sortBy=createdAt",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (>= 1, default 1)",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page (1-100, default 10)",
+                  "disabled": false
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Sort column: createdAt | updatedAt | dueDate | title | priority | status (required in practice; omitting triggers default 'ASC' which fails validation)",
+                  "disabled": false
+                },
+                {
+                  "key": "projectId",
+                  "value": "{{projectId}}",
+                  "description": "Filter by project ID",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "todo",
+                  "description": "Filter by status: todo | in_progress | done",
+                  "disabled": true
+                },
+                {
+                  "key": "priority",
+                  "value": "medium",
+                  "description": "Filter by priority: low | medium | high",
+                  "disabled": true
+                },
+                {
+                  "key": "assigneeId",
+                  "value": "{{userId}}",
+                  "description": "Filter by assignee user UUID",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lists tasks with optional filters, sorting, and pagination (`TasksController.findAll`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Query Parameters:**\n  - `page` (int, default `1`, must be `>= 1`)\n  - `limit` (int, default `10`, must be `1..100`)\n  - `sortBy` (string: `createdAt` | `updatedAt` | `dueDate` | `title` | `priority` | `status`). **Important:** In `TasksService.findAll()`, omitting `sortBy` defaults to `'ASC'`, which fails the `allowedSortFields` check and throws `400 Invalid sortBy field`.\n  - `projectId` (optional), `status` (`todo` | `in_progress` | `done`), `priority` (`low` | `medium` | `high`), `assigneeId` (optional UUID)\n- **Expected Statuses:** `200 OK`, `400 Bad Request`\n- **Expected Response:** `{ \"data\": [...], \"pagination\": { \"total\", \"page\", \"limit\", \"totalPages\", \"hasNextPage\", \"hasPreviousPage\" } }`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response contains data array and pagination metadata', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('data').that.is.an('array');",
+                  "    pm.expect(jsonData).to.have.property('pagination');",
+                  "    pm.expect(jsonData.pagination).to.have.all.keys('total', 'page', 'limit', 'totalPages', 'hasNextPage', 'hasPreviousPage');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks"
+              ]
+            },
+            "description": "Creates a new task under a project (`TasksController.createTask`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Validation (`CreateTaskDto`):**\n  - `title` (string, required)\n  - `description` (string, required)\n  - `status` (enum: `todo` | `in_progress` | `done`, required)\n  - `priority` (enum: `low` | `medium` | `high`, required)\n  - `dueDate` (ISO 8601 date string, required)\n  - `projectId` (string, required)\n  - `assignee` (string user UUID; optional in DTO, but `TasksService.create()` looks up the user and throws `404 Assignee not found.` if missing/invalid)\n- **Expected Statuses:** `201 Created`, `400 Bad Request`, `404 Not Found` (`Project not found.` or `Assignee not found.`)\n- **Expected Response:** Created `Task` entity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement JWT refresh rotation\",\n  \"description\": \"Add refresh token rotation and revocation checks in AuthService\",\n  \"status\": \"todo\",\n  \"priority\": \"high\",\n  \"dueDate\": \"2026-12-31T23:59:59.000Z\",\n  \"projectId\": \"{{projectId}}\",\n  \"assignee\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Task created and taskId saved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('title');",
+                  "    pm.environment.set('taskId', jsonData.id);",
+                  "    pm.collectionVariables.set('taskId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Task by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{taskId}}",
+                  "description": "Task UUID"
+                }
+              ]
+            },
+            "description": "Fetches a single task by UUID (`TasksController.findOneTask`). Cached in Redis (`capsote:task:<id>`) for 60 seconds.\n\n- **Auth:** Bearer JWT (`owner` or `member` role allowed)\n- **Path Parameter:** `id` (Task UUID)\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Task not found.`)\n- **Expected Response:** `Task` entity."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Task object returned', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('title');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{taskId}}",
+                  "description": "Task UUID"
+                }
+              ]
+            },
+            "description": "Updates a task (`TasksController.updateTask`).\n\n- **Auth:** Bearer JWT (`owner` or `member` role allowed)\n  - **`owner`:** Can update any task with `title`, `description`, `status`, `priority`, `dueDate`, and `assigneeId`.\n  - **`member`:** Can only update tasks assigned to them; only `description`, `status`, and `priority` are applied (also enqueues BullMQ `notify-subscribers` job).\n- **Path Parameter:** `id` (Task UUID)\n- **Validation (`UpdateTaskDto` \u2014 all fields optional):**\n  - `title` (string)\n  - `description` (string)\n  - `status` (`todo` | `in_progress` | `done`)\n  - `priority` (`low` | `medium` | `high`)\n  - `dueDate` (ISO 8601 date string)\n  - `assigneeId` (UUID)\n- **Expected Statuses:** `200 OK`, `400 Bad Request`, `404 Not Found` (`Task not found.` or `Assignee not found.`)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Implement JWT refresh rotation (Updated)\",\n  \"description\": \"Updated task description\",\n  \"status\": \"in_progress\",\n  \"priority\": \"medium\",\n  \"dueDate\": \"2026-12-31T23:59:59.000Z\",\n  \"assigneeId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Task updated', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('status', 'in_progress');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{taskId}}",
+                  "description": "Task UUID"
+                }
+              ]
+            },
+            "description": "Deletes a task by UUID (`TasksController.deleteTask`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Path Parameter:** `id` (Task UUID)\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Task not found`)\n- **Expected Response:** `{ \"message\": \"Task deleted\" }`"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Task deletion confirmed', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message', 'Task deleted');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Task Comments",
+      "description": "Comment endpoints mounted under `/tasks/:id/comments` (`src/tasks/tasks.controller.ts`). Note: `src/comments/comments.controller.ts` defines no routes.",
+      "item": [
+        {
+          "name": "Get Task Comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:id/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                ":id",
+                "comments"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{taskId}}",
+                  "description": "Task UUID"
+                }
+              ]
+            },
+            "description": "Retrieves all comments for a given task (`TasksController.getComments`).\n\n- **Auth:** Bearer JWT (`owner` role required \u2014 inherits class-level `@Roles(UserRoles.OWNER)`)\n- **Path Parameter:** `id` (Task UUID)\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Task not found.`)\n- **Expected Response:** Array of `Comment` entities."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array of comments', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add Comment to Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:id/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                ":id",
+                "comments"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{taskId}}",
+                  "description": "Task UUID"
+                }
+              ]
+            },
+            "description": "Adds a comment to a task authored by the authenticated user (`TasksController.addComment`).\n\n- **Auth:** Bearer JWT (`owner` or `member` role allowed)\n- **Path Parameter:** `id` (Task UUID)\n- **Validation (`AddCommentDto`):** `body` (string, required)\n- **Expected Statuses:** `201 Created`, `400 Bad Request`, `404 Not Found` (`Task not found`)\n- **Expected Response:** Created `Comment` entity.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Verified the validation rules and ready for review.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Comment created and commentId saved', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('body');",
+                  "    pm.environment.set('commentId', jsonData.id);",
+                  "    pm.collectionVariables.set('commentId', jsonData.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Task Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:id/comments/:comment_id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tasks",
+                ":id",
+                "comments",
+                ":comment_id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{taskId}}",
+                  "description": "Task UUID"
+                },
+                {
+                  "key": "comment_id",
+                  "value": "{{commentId}}",
+                  "description": "Comment UUID"
+                }
+              ]
+            },
+            "description": "Deletes a comment on a task (`TasksController.deleteComment`).\n\n- **Auth:** Bearer JWT (`owner` role required)\n- **Path Parameters:** `id` (Task UUID), `comment_id` (Comment UUID)\n- **Expected Statuses:** `200 OK`, `404 Not Found` (`Task not found` or `Comment not found`)\n- **Expected Response:** `{ \"message\": \"Comment deleted\" }`\n- **Implementation Note:** In `src/tasks/tasks.controller.ts`, `deleteComment(@Param('id') id: string, comment_id: string)` is missing the `@Param('comment_id')` decorator on the second parameter, so `comment_id` will be `undefined` at runtime until fixed in source."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Comment deletion confirmed', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message', 'Comment deleted');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
